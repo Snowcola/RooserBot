@@ -3,15 +3,22 @@ from discord import Intents
 from discord.ext.commands import Bot
 from discord_slash import SlashCommand
 from utils.cogs import load_available_cogs
+from config import logger
 import config
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--sync-commands", dest="sync", action="store_true")
+args = parser.parse_args()
 
 bot = Bot(command_prefix="!", self_bot=True, intents=Intents.default())
-slash = SlashCommand(bot, sync_commands=True)
+logger.info(f"{'not s' if args.sync else 'S'}yncing commands with Discord")
+slash = SlashCommand(bot, sync_commands=args.sync)
 
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} connected")
+    logger.info(f"{bot.user.name} connected")
 
 
 load_available_cogs(bot)
