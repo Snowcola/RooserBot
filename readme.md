@@ -1,7 +1,7 @@
 # RoosterBot v2
 
 
-## Using docker & VScode
+## Using Docker & VScode
 - install the `Docker` and `Remote - Containers` extensions
 - ctrl+shift+p to open the command palette, enter Remote-Containers: Open Folder in Container
 - select the project folder
@@ -13,9 +13,9 @@ to run the bot:
 ```bash
 python app/main.py
 ```
-if you have added new slash commands run the bot with the `-s` flag
+if you have added new slash commands run the bot with the `-s` flag. **Discord has very restrictive rate limiting on this action, perform sparringly**
 
-## Using docker & PyCharm
+## Using Docker & PyCharm
 - build the container
 ```bash 
 docker build -t roosterbot
@@ -31,3 +31,6 @@ docker build -t roosterbot
 ### Optional:
 - `BOT_LOG_LEVEL`: log level for RoosterBot [debug, info, warn, critical, fatal]
 - `DISCORD_LOG_LEVEL`: log level for Discord.py [debug, info, warn, critical, fatal]
+
+## Adding, Updateing and Removing Commands
+- [Discord API Documentation](https://discord.com/developers/docs/interactions/application-commands)

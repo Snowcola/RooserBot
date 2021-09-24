@@ -1,11 +1,12 @@
-import os
+import argparse
+
 from discord import Intents
 from discord.ext.commands import Bot
 from discord_slash import SlashCommand
-from utils.cogs import load_available_cogs
-from config import logger
+
 import config
-import argparse
+from config import logger
+from utils.cogs import load_available_cogs
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--sync-commands", dest="sync", action="store_true")
