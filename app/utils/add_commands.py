@@ -4,7 +4,7 @@ from config import DISCORD_TOKEN, APP_ID, GUILD_IDS
 
 
 base_url = "https://discord.com/api/v8"
-url = f"https://discord.com/api/v8/applications/{APP_ID}/commands"
+url_global = f"https://discord.com/api/v8/applications/{APP_ID}/commands"
 print(f"{APP_ID}")
 _commands = [
     {
@@ -60,8 +60,22 @@ play = {
     "name": "play",
     "description": "Start playing from the playlist",
 }
+stop = {
+    "name": "stop",
+    "description": "Stop playing from playlist",
+}
+pause = {
+    "name": "pause",
+    "description": "Pause/Resume the current playing track",
+}
+volume = {
+    "name": "volume",
+    "description": "Change the volume of player, leave blank to get current volume",
+    "options": [{"name": "volume", "description": "Volume [1-100] (ex: 40%)", "type": 3}],
+}
 
-commands = []
+
+commands = [stop, pause, volume]
 
 # For authorization, you can use either your bot token
 headers = {"Authorization": f"Bot {DISCORD_TOKEN}"}
@@ -69,9 +83,9 @@ headers = {"Authorization": f"Bot {DISCORD_TOKEN}"}
 
 def register_one(command: dict, update=False) -> dict:
     if update:
-        r = requests.patch(url, headers=headers, json=command)
+        r = requests.patch(url_global, headers=headers, json=command)
     else:
-        r = requests.post(url, headers=headers, json=command)
+        r = requests.post(url_global, headers=headers, json=command)
     print(r.headers)
     return r.json()
 
@@ -93,6 +107,11 @@ def register_at_guild(command: dict, guild: int) -> dict:
     url = f"{base_url}/applications/{APP_ID}/guilds/{guild}/commands"
     r = requests.post(url, headers=headers, json=command)
     print(r.headers)
+    return r.json()
+
+
+def get_global_commands():
+    r = requests.get(url_global, headers=headers)
     return r.json()
 
 

@@ -4,23 +4,13 @@ import logging
 
 class CustomFormatter(logging.Formatter):
 
-    grey = "\x1b[38;1m"
+    grey = "\x1b[2;1m"
     cyan = "\x1b[36;1m"
     yellow = "\x1b[33;1m"
     red = "\x1b[31;1m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = (
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
-    )
 
-    FORMATS = {
-        logging.DEBUG: f"%(asctime)s {grey}|%(levelname)s|{reset} %(name)s: %(message)s",
-        logging.INFO: f"%(asctime)s{cyan}|%(levelname)s|{reset} %(name)s: %(message)s",
-        logging.WARNING: f"%(asctime)s {yellow}|%(levelname)s|{reset} %(name)s: %(message)s",
-        logging.ERROR: f"%(asctime)s {red}|%(levelname)s|{reset} %(name)s: %(message)s",
-        logging.CRITICAL: f"%(asctime)s {bold_red}|%(levelname)s|{reset} %(name)s: %(message)s",
-    }
     COLOR_MAP = {
         logging.DEBUG: grey,
         logging.INFO: cyan,
@@ -60,9 +50,7 @@ formatter = logging.Formatter(
 # Discord.py logger
 disc_logger = logging.getLogger("discord")
 disc_logger.setLevel(DISCORD_LOG_LEVEL)
-handler = logging.FileHandler(
-    filename="/app/logs/discord.log", encoding="utf-8", mode="w"
-)
+handler = logging.FileHandler(filename="/app/logs/discord.log", encoding="utf-8", mode="w")
 handler.setFormatter(formatter)
 disc_logger.addHandler(handler)
 
@@ -73,3 +61,11 @@ stream_handler.setFormatter(CustomFormatter())
 stream_handler.setLevel(BOT_LOG_LEVEL)
 logger.addHandler(stream_handler)
 logger.setLevel(BOT_LOG_LEVEL)
+
+# YoutubeDL Logger
+ytdl_logger = logging.getLogger("youtube-dl")
+ytdl_stream_handler = logging.StreamHandler()
+ytdl_stream_handler.setFormatter(CustomFormatter())
+ytdl_stream_handler.setLevel(BOT_LOG_LEVEL)
+ytdl_logger.setLevel(BOT_LOG_LEVEL)
+ytdl_logger.addHandler(ytdl_stream_handler)

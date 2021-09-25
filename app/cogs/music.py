@@ -1,8 +1,6 @@
-import asyncio
 from dataclasses import dataclass
-from operator import mul
 import typing
-from discord import Embed, VoiceChannel, VoiceClient, FFmpegOpusAudio, FFmpegPCMAudio
+from discord import Embed, VoiceChannel, VoiceClient, FFmpegOpusAudio, FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext.commands import Bot, Cog
 from typing import Union
 from discord_slash import cog_ext, SlashContext
@@ -10,7 +8,7 @@ import discord.utils
 import config
 from collections import deque
 from youtube_dl import YoutubeDL
-from datetime import timedelta
+from utils.data import input_to_int
 
 
 @dataclass
@@ -47,33 +45,23 @@ class Music(Cog):
         self.bot: Bot = bot
         self.channel: VoiceChannel = None
         self.voice_client: VoiceClient = None
-        self.is_playing = False
+        self.is_playing: bool = False
+        self.is_paused: bool = False
+        self.volume: float = 0.15
+        self.now_playing: Song = Song(title="Nothing", source="", thumbnail="", web_url="", duration=-1)
 
         # consder db support so playlist can survive restarts
         self.music_queue: typing.Deque[Song] = deque()
 
-        self.YTDL_OPTIONS = {"format": "bestaudio", "noplaylist": "True"}
+        self.YTDL_OPTIONS = {"format": "bestaudio", "noplaylist": "True", "logger": config.ytdl_logger}
         self.FFMPEG_OPTIONS = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn",
         }
 
-    def is_playing(self):
-        return self.voice_client and self.voice_client.is_playing()
-
-    def is_paused(self):
-        return self.voice_client and self.voice_client.is_paused()
-
-    def check_connected(self, ctx):
-        voice_client: VoiceClient = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
-        return voice_client and voice_client.is_connected()
-
-    def update_voice_state(self, ctx):
-        voice_client: VoiceClient = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
-        if voice_client:
-            self.voice_client = voice_client
-            self.channel = voice_client.channel
-
+    ################
+    ## JOIN/LEAVE ##
+    ################
     @cog_ext.cog_slash(
         name="join",
         guild_ids=config.GUILD_IDS,
@@ -89,7 +77,6 @@ class Music(Cog):
         except AttributeError:
             await ctx.reply("you are not in a voice channel")
             return False
-        print("{self.channel=} {join_channel=}")
         if self.channel and self.channel.id == join_channel.id:
             await ctx.reply(f"{self.bot.user.name} is already in **{join_channel}**")
             return
@@ -111,6 +98,9 @@ class Music(Cog):
         else:
             await ctx.reply(f"{self.bot.user.name} is not in a voice channel")
 
+    #####################
+    ## MANAGE PLAYLIST ##
+    #####################
     @cog_ext.cog_slash(
         name="add",
         description=f"Add a song to the playlist",
@@ -147,6 +137,120 @@ class Music(Cog):
             embed.description = "\n".join(track_list)
         await ctx.reply(embed=embed)
 
+    ############
+    ##  PLAY  ##
+    ############
+    @cog_ext.cog_slash(
+        name="play",
+        description=f"Start playing from the playlist",
+    )
+    async def _play(self, ctx: SlashContext):
+        if not self.check_connected(ctx):
+            can_join = await self.join(ctx)
+            if can_join == False:
+                ctx.reply("Please join a voice channel first")
+                return
+        if len(self.music_queue) > 0:
+            await ctx.reply(f"**Now Playing**", embed=self.music_queue[0].embed)
+            self.play_next()
+        else:
+            await ctx.reply(f"I don't have any songs to play, please add one first")
+
+    def play_next(self):
+        if len(self.music_queue) > 0:
+            self.is_playing = True
+
+            track = self.music_queue.popleft()
+            source = PCMVolumeTransformer(FFmpegPCMAudio(track.source, **self.FFMPEG_OPTIONS), volume=self.volume)
+            self.voice_client.play(source, after=lambda x: self.play_next())
+            self.now_playing = track
+        else:
+            self.is_playing = False
+
+    ##########
+    ## STOP ##
+    ##########
+    @cog_ext.cog_slash(
+        name="stop",
+        description=f"Stop playing from playlist",
+    )
+    async def _stop(self, ctx: SlashContext):
+        if self.is_playing:
+            try:
+                self.stop()
+            except Exception as e:
+                config.logger.error(f"Could not stop playing: {e}")
+                await ctx.reply("Unable stop playing")
+            await ctx.reply(f"**Stopping** {self.now_playing.title}")
+        else:
+            await ctx.reply("Nothing is playing")
+
+    def stop(self):
+        """Stops playing music"""
+        if self.is_playing:
+            self.voice_client.stop()
+
+    ############
+    ## VOLUME ##
+    ############
+    @cog_ext.cog_slash(
+        name="volume",
+        description=f"Change the volume of player, leave blank to get current volume",
+        options=[{"type": 3, "name": "volume", "description": "Volume [1-100] (ex: 40%)"}],
+    )
+    async def _volume(self, ctx: SlashContext, volume: str = None):
+        if not volume:
+            await ctx.reply(f"Volume is set to {int(self.volume * 100)}%")
+        if self.is_playing:
+            try:
+                self.set_volume(input_to_int(volume))
+            except Exception as e:
+                config.logger.error(f"Could not change volume: \n{e}")
+                await ctx.reply("Volume could not be changed")
+                return
+            await ctx.reply(f"Volume changed to {volume}")
+
+    def set_volume(self, volume: int):
+        """Sets the volume of the plays
+        @param volume[int]: desired volume 0-100"""
+        clamped_volume = max(min(volume, 100), 0)
+        self.volume = clamped_volume / 100
+        if self.is_playing:
+            self.voice_client.source.volume = self.volume
+
+    def get_volume(self):
+        return self.volume * 100
+
+    ############
+    ## PAUSE ##
+    ############
+    @cog_ext.cog_slash(
+        name="pause",
+        description=f"Pause/Resume the current playing track",
+    )
+    async def _pause(self, ctx: SlashContext):
+        await ctx.reply(f"**{'Pausing' if not self.is_paused else 'Resuming'}:** {self.now_playing.title}")
+        try:
+            self.pause_resume()
+        except Exception as e:
+            config.logger.error(f"Was not able to pause/resume: {e}")
+            await ctx.reply("Unable to pause/resume")
+
+    def pause_resume(self):
+        """Pause/Resume playing music, keeps place on current track"""
+        if self.is_playing and not self.is_paused:
+            self.voice_client.pause()
+            self.is_paused = True
+        elif self.is_paused:
+            self.voice_client.resume()
+            self.is_paused = False
+
+    ## Skip
+
+    #############
+    ## HELPERS ##
+    #############
+
     def search_youtube(self, song: str, multiple=False, max_entries=10) -> Union[list[Song], bool]:
         with YoutubeDL(self.YTDL_OPTIONS) as ytdl:
             try:
@@ -178,39 +282,21 @@ class Music(Cog):
             )
         ]
 
-    @cog_ext.cog_slash(
-        name="play",
-        description=f"Start playing from the playlist",
-    )
-    async def _play(self, ctx: SlashContext):
-        if not self.check_connected(ctx):
-            can_join = await self.join(ctx)
-            if can_join == False:
-                ctx.reply("Please join a voice channel first")
-                return
-        if len(self.music_queue) > 0:
-            await ctx.reply(f"**Now Playing**", embed=self.music_queue[0].embed)
-            self.play_next()
-        else:
-            await ctx.reply(f"I don't have any songs to play, please add one first")
+    def is_voice_playing(self):
+        return self.voice_client and self.voice_client.is_playing()
 
-    def play_next(self):
-        if len(self.music_queue) > 0:
-            self.is_playing = True
+    def is_voice_paused(self):
+        return self.voice_client and self.voice_client.is_paused()
 
-            track = self.music_queue.popleft()
+    def check_connected(self, ctx):
+        voice_client: VoiceClient = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        return voice_client and voice_client.is_connected()
 
-            self.voice_client.play(
-                FFmpegPCMAudio(track.source, **self.FFMPEG_OPTIONS), after=lambda x: self.play_next()
-            )
-        else:
-            self.is_playing = False
-
-    ## Stop
-
-    ## Skip
-
-    ## Volume
+    def update_voice_state(self, ctx):
+        voice_client: VoiceClient = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client:
+            self.voice_client = voice_client
+            self.channel = voice_client.channel
 
 
 def setup(bot: Bot):
