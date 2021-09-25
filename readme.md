@@ -31,6 +31,13 @@ docker build -t roosterbot
 ### Optional:
 - `BOT_LOG_LEVEL`: log level for RoosterBot [debug, info, warn, critical, fatal]
 - `DISCORD_LOG_LEVEL`: log level for Discord.py [debug, info, warn, critical, fatal]
+- `APP_ID`: Application ID from the discord developer portal: REQUIRED to update commands via manage.py
 
-## Adding, Updateing and Removing Commands
+## Adding, Updating and Removing Commands
 - [Discord API Documentation](https://discord.com/developers/docs/interactions/application-commands)
+
+## Dependencies
+- `libiffi-dev`
+- `libnacl-dev`
+- `python3-dev`
+- `ffmpeg`
