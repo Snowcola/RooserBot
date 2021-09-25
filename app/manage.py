@@ -3,6 +3,8 @@ import pprint
 
 from utils.add_commands import (
     commands,
+    stop,
+    pause,
     register_all,
     register_at_all_guilds,
     register_at_guild,
@@ -58,9 +60,11 @@ def main(args):
     if args.commands == "get-commands" and args.get_global:
         globals = get_global_commands()
         pp.pprint(globals)
+        pp.pprint([item["name"] for item in globals])
     pass
 
 
 if __name__ == "__main__":
     main(args)
-    # print(register_all(commands))
+    print(register_one(stop, update=True, id=891170499932094464))
+    # print(register_one(pause, update=True, id=891170500817084436))

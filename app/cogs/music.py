@@ -64,7 +64,6 @@ class Music(Cog):
     ################
     @cog_ext.cog_slash(
         name="join",
-        guild_ids=config.GUILD_IDS,
         description=f"Ask RoosterBot to join you in a voice channel",
     )
     async def _join(self, ctx: SlashContext) -> typing.Union[bool, None]:
@@ -87,7 +86,6 @@ class Music(Cog):
 
     @cog_ext.cog_slash(
         name="leave",
-        guild_ids=config.GUILD_IDS,
         description=f"Ask RoosterBot to leave the voice channel",
     )
     async def _leave(self, ctx: SlashContext):
@@ -101,6 +99,8 @@ class Music(Cog):
     #####################
     ## MANAGE PLAYLIST ##
     #####################
+
+    # should add a remove commands as well, maybe a good usecase for buttons
     @cog_ext.cog_slash(
         name="add",
         description=f"Add a song to the playlist",
@@ -172,7 +172,7 @@ class Music(Cog):
     ##########
     @cog_ext.cog_slash(
         name="stop",
-        description=f"Stop playing from playlist",
+        description=f"Stop playing from the playlist",
     )
     async def _stop(self, ctx: SlashContext):
         if self.is_playing:

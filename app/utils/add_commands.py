@@ -5,7 +5,7 @@ from config import DISCORD_TOKEN, APP_ID, GUILD_IDS
 
 base_url = "https://discord.com/api/v8"
 url_global = f"https://discord.com/api/v8/applications/{APP_ID}/commands"
-print(f"{APP_ID}")
+
 _commands = [
     {
         "name": "roll",
@@ -62,7 +62,7 @@ play = {
 }
 stop = {
     "name": "stop",
-    "description": "Stop playing from playlist",
+    "description": "Stop playing from the playlist",
 }
 pause = {
     "name": "pause",
@@ -75,25 +75,39 @@ volume = {
 }
 
 
-commands = [stop, pause, volume]
+leave = {
+    "name": "leave",
+    "description": "Ask RoosterBot to leave the voice channel",
+}
+join = {
+    "name": "join",
+    "description": "Ask RoosterBot to join you in a voice channel",
+}
+
+commands = [stop, pause]
 
 # For authorization, you can use either your bot token
 headers = {"Authorization": f"Bot {DISCORD_TOKEN}"}
 
 
-def register_one(command: dict, update=False) -> dict:
+def rate_limit_headers(headers: dict) -> dict:
+    return {header: headers[header] for header in headers.keys() if "x-rate" in header}
+
+
+def register_one(command: dict, update=False, id: int = None) -> dict:
     if update:
-        r = requests.patch(url_global, headers=headers, json=command)
+        r = requests.patch(f"{url_global}/{id}", headers=headers, json=command)
     else:
         r = requests.post(url_global, headers=headers, json=command)
     print(r.headers)
+    print(rate_limit_headers(r.headers))
     return r.json()
 
 
-def register_all(commands) -> list:
+def register_all(commands: list[dict], update: bool = False) -> list:
     responses = []
     for item in commands:
-        r = register_one(item)
+        r = register_one(item, update)
         responses.append(r)
     return responses
 
@@ -106,12 +120,13 @@ def register_at_all_guilds(command: dict):
 def register_at_guild(command: dict, guild: int) -> dict:
     url = f"{base_url}/applications/{APP_ID}/guilds/{guild}/commands"
     r = requests.post(url, headers=headers, json=command)
-    print(r.headers)
+    print(rate_limit_headers(r.headers))
     return r.json()
 
 
 def get_global_commands():
     r = requests.get(url_global, headers=headers)
+    print(rate_limit_headers(r.headers))
     return r.json()
 
 
