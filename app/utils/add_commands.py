@@ -100,7 +100,7 @@ remove = {
     }]
 }
 
-commands = [remove]
+commands = [skip]
 
 # For authorization, you can use either your bot token
 headers = {"Authorization": f"Bot {DISCORD_TOKEN}"}

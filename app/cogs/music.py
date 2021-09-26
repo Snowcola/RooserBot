@@ -3,12 +3,14 @@ import typing
 from discord import Embed, VoiceChannel, VoiceClient, FFmpegOpusAudio, FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext.commands import Bot, Cog
 from typing import Union
-from discord_slash import cog_ext, SlashContext
+from discord_slash import cog_ext, SlashContext, ComponentContext
 import discord.utils
 import config
 from collections import deque
 from youtube_dl import YoutubeDL
 from utils.data import input_to_int
+from discord_slash.utils.manage_components import create_select, create_select_option, create_actionrow
+
 
 
 @dataclass
@@ -48,6 +50,7 @@ class Music(Cog):
         self.is_playing: bool = False
         self.is_paused: bool = False
         self.volume: float = 0.15
+        self.is_stopped: bool = False
         self.now_playing: Song = Song(title="Nothing", source="", thumbnail="", web_url="", duration=-1)
 
         # consder db support so playlist can survive restarts
@@ -100,7 +103,6 @@ class Music(Cog):
     ## MANAGE PLAYLIST ##
     #####################
 
-    # should add a remove commands as well, maybe a good usecase for buttons
     @cog_ext.cog_slash(
         name="add",
         description=f"Add a song to the playlist",
@@ -129,13 +131,18 @@ class Music(Cog):
         description=f"List songs in the playlist",
     )
     async def _playlist(self, ctx: SlashContext):
+        embed = self.playlist_embed()
+        await ctx.reply(embed=embed)
+
+    def playlist_embed(self):
         embed = Embed(title=f"Playlist ({len(self.music_queue)} tracks)", color=discord.Color.purple())
         track_list = []
         for idx, track in enumerate(self.music_queue):
             track_list.append(f"`{idx+1}` [{track.title}]({track.web_url}) {track.duration_time}")
         if track_list:
             embed.description = "\n".join(track_list)
-        await ctx.reply(embed=embed)
+        return embed
+
 
     ############
     ##  PLAY  ##
@@ -145,6 +152,7 @@ class Music(Cog):
         description=f"Start playing from the playlist",
     )
     async def _play(self, ctx: SlashContext):
+        self.is_stopped = False
         if not self.check_connected(ctx):
             can_join = await self.join(ctx)
             if can_join == False:
@@ -157,6 +165,9 @@ class Music(Cog):
             await ctx.reply(f"I don't have any songs to play, please add one first")
 
     def play_next(self):
+        if self.is_stopped:
+            config.logger.info("playing next stopped")
+            return
         if len(self.music_queue) > 0:
             self.is_playing = True
 
@@ -188,7 +199,9 @@ class Music(Cog):
     def stop(self):
         """Stops playing music"""
         if self.is_playing:
+            self.is_stopped = True
             self.voice_client.stop()
+            self.is_playing = False
 
     ############
     ## VOLUME ##
@@ -245,8 +258,69 @@ class Music(Cog):
             self.voice_client.resume()
             self.is_paused = False
 
-    ## Skip
+    ##########
+    ## Skip ##
+    ##########
+    @cog_ext.cog_slash(
+        name="skip",
+        description=f"Skip the current track",
+    )
+    async def _skip(self, ctx: SlashContext):
+        if self.is_playing and len(self.music_queue) > 0:
+            await ctx.reply(f"Skipping {self.now_playing.title}")
+            self.voice_client.stop()
+        elif self.is_playing and len(self.music_queue) == 0:
+            await ctx.reply("There are no more tracks in the playlist, stopping instead")
+            self.stop()
+        else:
+            await ctx.reply("Nothing is playing")
 
+    ############
+    ## Remove ##
+    ############
+    @cog_ext.cog_slash(
+        name="remove",
+        description=f"Skip the current track",
+        options=[{
+        "name": "track_number",
+        "description": "Number of the track to remove",
+        "type": 4,
+        "required": False
+    }]
+    )
+    async def _remove(self, ctx: SlashContext, track_number: int = None):
+        if track_number and len(self.music_queue) >= track_number:
+            track_title = self.music_queue[track_number - 1].title
+            del self.music_queue[track_number - 1]
+            await ctx.reply(f":white_check_mark: **{track_title}** successfully removed!", embed=self.playlist_embed())
+        else:
+
+            options = [create_select_option(item.title, value=f"{i}",) for (i, item) in enumerate(self.music_queue)]
+
+            select = create_select(
+                options,
+                placeholder="select a track to remove", 
+                min_values=1, 
+                max_values=1, custom_id="remove_select"  
+            )
+
+            await ctx.send("Which track would you like to remove from the playlist?", components=[create_actionrow(select)], embed=self.playlist_embed()) 
+
+    def remove_track(self, track):
+        del self.music_queue[track]
+
+    async def handle_remove(self, ctx: ComponentContext):
+        config.logger.debug(f"{ctx.custom_id} {ctx.selected_options}")
+        selected_track = int(ctx.selected_options[0])
+        track_title = self.music_queue[selected_track].title
+        self.remove_track(selected_track)
+        await ctx.edit_origin(content=f":white_check_mark: **{track_title}** successfully removed!", embed=self.playlist_embed(), components=[])
+        # await ctx.edit_origin()
+
+    @Cog.listener()
+    async def on_component(self, ctx: ComponentContext):
+        if ctx.custom_id == "remove_select":
+            await self.handle_remove(ctx)
     #############
     ## HELPERS ##
     #############
