@@ -1,0 +1,6 @@
+services:
+  roosterbot:
+    build: .
+    image: snowcola/roosterbot
+    volumes:
+      - ./:/workspace

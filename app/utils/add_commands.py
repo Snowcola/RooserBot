@@ -84,7 +84,23 @@ join = {
     "description": "Ask RoosterBot to join you in a voice channel",
 }
 
-commands = [stop, pause]
+skip = {
+    "name": "skip",
+    "description": "Skip the current track",
+}
+
+remove = {
+    "name": "remove",
+    "description": "Remove an item from the playlist",
+    "options": [{
+        "name": "track_number",
+        "description": "Number of the track to remove",
+        "type": 4,
+        "required": False
+    }]
+}
+
+commands = [remove]
 
 # For authorization, you can use either your bot token
 headers = {"Authorization": f"Bot {DISCORD_TOKEN}"}
