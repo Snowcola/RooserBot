@@ -50,7 +50,7 @@ formatter = logging.Formatter(
 # Discord.py logger
 disc_logger = logging.getLogger("discord")
 disc_logger.setLevel(DISCORD_LOG_LEVEL)
-handler = logging.FileHandler(filename="/app/logs/discord.log", encoding="utf-8", mode="w")
+handler = logging.FileHandler(filename="/log/discord.log", encoding="utf-8", mode="w")
 handler.setFormatter(formatter)
 disc_logger.addHandler(handler)
 
