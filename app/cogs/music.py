@@ -154,7 +154,7 @@ class Music(Cog):
         if not self.check_connected(ctx):
             can_join = await self.join(ctx)
             if can_join == False:
-                ctx.reply("Please join a voice channel first")
+                await ctx.reply("Please join a voice channel first")
                 return
         if len(self.music_queue) > 0:
             await ctx.reply(f"**Now Playing**", embed=self.music_queue[0].embed)
