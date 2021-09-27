@@ -4,3 +4,7 @@ services:
     image: snowcola/roosterbot
     volumes:
       - ./:/workspace
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - APP_ID=${APP_ID}
+      - BOT_LOG_LEVEL=${BOT_LOG_LEVEL}

@@ -1,10 +1,12 @@
 from pathlib import Path
 from discord.ext.commands import Bot
-from config import logger
+from config import logger, DEV
 
 
 def load_available_cogs(bot: Bot):
-    files = [x for x in Path("./app/cogs").glob("*.py") if "__init__" not in str(x)]
+    cog_location = Path("./app/cogs") if DEV else Path("/app/cogs")
+    logger.debug(f"Looking for cogs at {cog_location}")
+    files = [x for x in cog_location.glob("*.py") if "__init__" not in str(x)]
     logger.info(f"loading cogs {[str(file) for file in files]}")
 
     for file in files:

@@ -12,7 +12,6 @@ from utils.data import input_to_int
 from discord_slash.utils.manage_components import create_select, create_select_option, create_actionrow
 
 
-
 @dataclass
 class Song:
     title: str
@@ -142,7 +141,6 @@ class Music(Cog):
         if track_list:
             embed.description = "\n".join(track_list)
         return embed
-
 
     ############
     ##  PLAY  ##
@@ -281,12 +279,9 @@ class Music(Cog):
     @cog_ext.cog_slash(
         name="remove",
         description=f"Skip the current track",
-        options=[{
-        "name": "track_number",
-        "description": "Number of the track to remove",
-        "type": 4,
-        "required": False
-    }]
+        options=[
+            {"name": "track_number", "description": "Number of the track to remove", "type": 4, "required": False}
+        ],
     )
     async def _remove(self, ctx: SlashContext, track_number: int = None):
         if track_number and len(self.music_queue) >= track_number:
@@ -295,16 +290,23 @@ class Music(Cog):
             await ctx.reply(f":white_check_mark: **{track_title}** successfully removed!", embed=self.playlist_embed())
         else:
 
-            options = [create_select_option(item.title, value=f"{i}",) for (i, item) in enumerate(self.music_queue)]
+            options = [
+                create_select_option(
+                    item.title,
+                    value=f"{i}",
+                )
+                for (i, item) in enumerate(self.music_queue)
+            ]
 
             select = create_select(
-                options,
-                placeholder="select a track to remove", 
-                min_values=1, 
-                max_values=1, custom_id="remove_select"  
+                options, placeholder="select a track to remove", min_values=1, max_values=1, custom_id="remove_select"
             )
 
-            await ctx.send("Which track would you like to remove from the playlist?", components=[create_actionrow(select)], embed=self.playlist_embed()) 
+            await ctx.send(
+                "Which track would you like to remove from the playlist?",
+                components=[create_actionrow(select)],
+                embed=self.playlist_embed(),
+            )
 
     def remove_track(self, track):
         del self.music_queue[track]
@@ -314,13 +316,17 @@ class Music(Cog):
         selected_track = int(ctx.selected_options[0])
         track_title = self.music_queue[selected_track].title
         self.remove_track(selected_track)
-        await ctx.edit_origin(content=f":white_check_mark: **{track_title}** successfully removed!", embed=self.playlist_embed(), components=[])
-        # await ctx.edit_origin()
+        await ctx.edit_origin(
+            content=f":white_check_mark: **{track_title}** successfully removed!",
+            embed=self.playlist_embed(),
+            components=[],
+        )
 
     @Cog.listener()
     async def on_component(self, ctx: ComponentContext):
         if ctx.custom_id == "remove_select":
             await self.handle_remove(ctx)
+
     #############
     ## HELPERS ##
     #############

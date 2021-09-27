@@ -66,5 +66,3 @@ def main(args):
 
 if __name__ == "__main__":
     main(args)
-    print(register_all(commands))
-    # print(register_one(pause, update=True, id=891170500817084436))
