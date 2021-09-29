@@ -331,7 +331,7 @@ class Music(Cog):
     ## HELPERS ##
     #############
 
-    def search_youtube(self, song: str, multiple=False, max_entries=10) -> Union[list[Song], bool]:
+    def search_youtube(self, song: str, multiple=False, max_entries=10) -> Union[typing.List[Song], bool]:
         with YoutubeDL(self.YTDL_OPTIONS) as ytdl:
             try:
                 results = ytdl.extract_info(f"ytsearch:{song}", download=False)["entries"]
