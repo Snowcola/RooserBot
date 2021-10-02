@@ -61,7 +61,8 @@ def main(args):
         globals = get_global_commands()
         pp.pprint(globals)
         pp.pprint([item["name"] for item in globals])
-    pass
+    if args.commands == "reg":
+        pp.pprint(register_all(commands))
 
 
 if __name__ == "__main__":

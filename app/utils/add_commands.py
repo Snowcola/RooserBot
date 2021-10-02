@@ -1,3 +1,5 @@
+from os import name
+from discord.ext.commands.core import command
 import requests
 import json
 from config import DISCORD_TOKEN, APP_ID, GUILD_IDS
@@ -54,6 +56,70 @@ add_song = {
 playlist = {
     "name": "playlist",
     "description": "List songs in the playlist",
+    "options": [
+        {"name": "show", "description": "Show the playlist", "type": 1},
+        {"name": "clear", "description": "Remove all tracks from the playlist", "type": 1},
+        {
+            "name": "move",
+            "description": "Reorganize the playlist",
+            "type": 2,
+            "required": False,
+            "options": [
+                {
+                    "name": "start",
+                    "description": "Move track to the start of the playlist",
+                    "type": 1,
+                    "options": [
+                        {
+                            "name": "track_number",
+                            "description": "Number of the track to move",
+                            "required": False,
+                            "type": 4,
+                        }
+                    ],
+                },
+                {
+                    "name": "end",
+                    "description": "Move track to the end of the playlist",
+                    "type": 1,
+                    "options": [
+                        {
+                            "name": "track_number",
+                            "description": "Number of the track to move",
+                            "required": False,
+                            "type": 4,
+                        }
+                    ],
+                },
+                {
+                    "name": "up",
+                    "description": "Move a track up a spot in the playlist",
+                    "type": 1,
+                    "options": [
+                        {
+                            "name": "track_number",
+                            "description": "Number of the track to move",
+                            "required": False,
+                            "type": 4,
+                        }
+                    ],
+                },
+                {
+                    "name": "down",
+                    "description": "Move a track down a spot in the playlist",
+                    "type": 1,
+                    "options": [
+                        {
+                            "name": "track_number",
+                            "description": "Number of the track to move",
+                            "required": False,
+                            "type": 4,
+                        }
+                    ],
+                },
+            ],
+        },
+    ],
 }
 
 play = {
@@ -92,15 +158,24 @@ skip = {
 remove = {
     "name": "remove",
     "description": "Remove an item from the playlist",
-    "options": [{
-        "name": "track_number",
-        "description": "Number of the track to remove",
-        "type": 4,
-        "required": False
-    }]
+    "options": [{"name": "track_number", "description": "Number of the track to remove", "type": 4, "required": False}],
 }
 
-commands = [skip]
+search = {
+    "name": "search",
+    "description": "Search for a song to add to the playlist",
+}
+
+
+add_playlist = {
+    "name": "add-playlist",
+    "description": "Add a YouTube playlist to RoosterBot's playlist",
+    "options": [{"name": "playlist_url", "description": "Link to the YouTube playlist", "type": 3, "required": True}],
+}
+
+
+commands = [playlist, add_playlist, add_song, search]
+
 
 # For authorization, you can use either your bot token
 headers = {"Authorization": f"Bot {DISCORD_TOKEN}"}
@@ -120,10 +195,12 @@ def register_one(command: dict, update=False, id: int = None) -> dict:
     return r.json()
 
 
-def register_all(commands: list[dict], update: bool = False) -> list:
+def register_all(commands: list[dict], update: bool = False, ids: list = None) -> list:
     responses = []
-    for item in commands:
-        r = register_one(item, update)
+    if update:
+        command_ids = list(zip(commands, ids))
+    for (i, item) in enumerate(commands):
+        r = register_one(item, update, command_ids[i][1] if update else None)
         responses.append(r)
     return responses
 
