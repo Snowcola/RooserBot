@@ -61,9 +61,6 @@ class YoutubeSearch:
                     playlist_url,
                     download=False,
                 )
-                pp.pprint(
-                    ytdl.extract_info(f"https://youtube.com/watch?v={results['entries'][0]['url']}", download=False)
-                )
             except Exception as e:
                 config.logger.debug(f"Error searching youtube for playslist: \n{e}")
                 return False

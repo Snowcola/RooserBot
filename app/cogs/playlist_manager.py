@@ -1,7 +1,11 @@
 from discord.ext.commands import Cog, Bot
 from discord_slash import cog_ext, SlashContext, ComponentContext
+from discord_slash.model import ButtonStyle
+from discord_slash.utils.manage_components import create_actionrow, create_button
 from typing import Optional, Deque
 from collections import deque
+from discord import Embed, Color, PartialEmoji
+from config import logger
 
 from cogs import MusicPlayer, Song, YoutubeSearch
 
@@ -18,6 +22,8 @@ class PlaylistManager(Cog):
         self.player.music_queue.extend(results)
         # button is this the playlist you want to add?
         await ctx.reply(f"Added playlist: {playlist_url}", embed=self.player.playlist_embed())
+        # await ctx.reply(**self.player.player_widget.widget(ctx))
+        await self.player.player_widget.show(ctx)
 
     @cog_ext.cog_subcommand(base="playlist", name="clear")
     async def _playlist_clear(self, ctx: SlashContext) -> None:

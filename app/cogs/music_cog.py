@@ -2,6 +2,7 @@ import typing
 from collections import deque
 from dataclasses import dataclass
 from typing import Optional, Union
+import asyncio
 
 import config
 import discord.utils
@@ -23,7 +24,7 @@ class MusicPlayer(Cog):
         self.is_playing: bool = False
         self.is_paused: bool = False
         self.volume: float = 0.15
-        self.is_stopped: bool = False
+        self.is_stopped: bool = True
         self.now_playing: Song = Song(title="Nothing", _source="", _thumbnail="", web_url="", duration=-1)
 
         # consder db support so playlist can survive restarts
@@ -34,25 +35,29 @@ class MusicPlayer(Cog):
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn",
         }
+
+        # create subcogs
         self.playlist_manager = cogs.PlaylistManager(bot, self)
+        self.player_widget = cogs.PlayerWidget(bot, self)
 
         # register subcogs
         self.bot.add_cog(self.playlist_manager)
+        self.bot.add_cog(self.player_widget)
 
         if config.DEV:
-
-            playlist = [
-                Song("first   ", "", "", "", 123),
-                Song("second  ", "", "", "", 123),
-                Song("third   ", "", "", "", 123),
-                Song("fourth  ", "", "", "", 123),
-                Song("fifth   ", "", "", "", 123),
-                Song("sixth   ", "", "", "", 123),
-                Song("seventh ", "", "", "", 123),
-                Song("eighth  ", "", "", "", 123),
-            ]
-            for song in playlist:
-                self.music_queue.append(song)
+            pass
+            # playlist = [
+            #     Song("first   ", "", "", "", 123),
+            #     Song("second  ", "", "", "", 123),
+            #     Song("third   ", "", "", "", 123),
+            #     Song("fourth  ", "", "", "", 123),
+            #     Song("fifth   ", "", "", "", 123),
+            #     Song("sixth   ", "", "", "", 123),
+            #     Song("seventh ", "", "", "", 123),
+            #     Song("eighth  ", "", "", "", 123),
+            # ]
+            # for song in playlist:
+            #     self.music_queue.append(song)
 
     ################
     ## JOIN/LEAVE ##
@@ -64,7 +69,7 @@ class MusicPlayer(Cog):
     async def _join(self, ctx: SlashContext) -> typing.Union[bool, None]:
         await self.join(ctx)
 
-    async def join(self, ctx: SlashContext):
+    async def join(self, ctx: SlashContext, silent=False):
         self.update_voice_state(ctx)
         try:
             join_channel = ctx.author.voice.channel
@@ -72,12 +77,15 @@ class MusicPlayer(Cog):
             await ctx.reply("you are not in a voice channel")
             return False
         if self.channel and self.channel.id == join_channel.id:
-            await ctx.reply(f"{self.bot.user.name} is already in **{join_channel}**")
+            if not silent:
+                await ctx.reply(f"{self.bot.user.name} is already in **{join_channel}**")
             return
         await join_channel.connect()
         self.channel = join_channel
         self.voice_client = ctx.guild.voice_client
-        await ctx.reply(f"{self.bot.user.name} has joined **{join_channel}** ")
+        if not silent:
+            await ctx.reply(f"{self.bot.user.name} has joined **{join_channel}** ")
+        return True
 
     @cog_ext.cog_slash(
         name="leave",
@@ -126,6 +134,7 @@ class MusicPlayer(Cog):
     async def _playlist_show(self, ctx: SlashContext):
         embed = self.playlist_embed()
         await ctx.reply(embed=embed)
+        await ctx.reply(**self.player_widget.show(ctx))
 
     def playlist_embed(self):
         embed = Embed(
@@ -253,19 +262,25 @@ class MusicPlayer(Cog):
         description=f"Start playing from the playlist",
     )
     async def _play(self, ctx: SlashContext):
+        self.play(ctx)
+
+    async def play(self, ctx: Union[SlashContext, ComponentContext], silent: bool = False):
         self.is_stopped = False
-        if not self.check_connected(ctx):
-            can_join = await self.join(ctx)
-            if can_join == False:
-                await ctx.reply("Please join a voice channel first")
+        self.update_voice_state(ctx)
+        if not self.voice_client or self.voice_client.channel != ctx.author.voice.channel:
+            config.logger.debug(f"Attempting to join {ctx.author.voice.channel}")
+            can_join = await self.join(ctx, silent)
+            if not can_join:
                 return
         if len(self.music_queue) > 0:
-            await ctx.reply(f"**Now Playing**", embed=self.music_queue[0].embed)
-            self.play_next()
+            if not silent:
+                await ctx.reply(f"**Now Playing**", embed=self.music_queue[0].embed)
+            await self.play_next()
         else:
-            await ctx.reply(f"I don't have any songs to play, please add one first")
+            if not silent:
+                await ctx.reply(f"I don't have any songs to play, please add one first")
 
-    def play_next(self):
+    async def play_next(self):
         if self.is_stopped:
             config.logger.info("playing next stopped")
             return
@@ -274,8 +289,12 @@ class MusicPlayer(Cog):
 
             track = self.music_queue.popleft()
             source = PCMVolumeTransformer(FFmpegPCMAudio(track.source, **self.FFMPEG_OPTIONS), volume=self.volume)
-            self.voice_client.play(source, after=lambda x: self.play_next())
+            config.logger.info(f"Playing {track.title} from {track.source}")
+            self.voice_client.play(
+                source, after=lambda x: asyncio.run_coroutine_threadsafe(self.play_next(), self.bot.loop)
+            )
             self.now_playing = track
+            await self.player_widget.update(defer=2)
         else:
             self.is_playing = False
 
@@ -290,11 +309,13 @@ class MusicPlayer(Cog):
         if self.is_playing:
             try:
                 self.stop()
+                config.logger.info(f"Stopped playing {self.now_playing.title}")
             except Exception as e:
                 config.logger.error(f"Could not stop playing: {e}")
                 await ctx.reply("Unable stop playing")
             await ctx.reply(f"**Stopping** {self.now_playing.title}")
         else:
+            config.logger.info("Nothing to stop, not track playing")
             await ctx.reply("Nothing is playing")
 
     def stop(self):
@@ -333,7 +354,7 @@ class MusicPlayer(Cog):
             self.voice_client.source.volume = self.volume
 
     def get_volume(self):
-        return self.volume * 100
+        return int(self.volume * 100)
 
     ############
     ## PAUSE ##
@@ -367,14 +388,20 @@ class MusicPlayer(Cog):
         description=f"Skip the current track",
     )
     async def _skip(self, ctx: SlashContext):
+        await self.skip(ctx)
+
+    async def skip(self, ctx: SlashContext, silent=False):
         if self.is_playing and len(self.music_queue) > 0:
-            await ctx.reply(f"Skipping {self.now_playing.title}")
+            if not silent:
+                await ctx.reply(f"Skipping {self.now_playing.title}")
             self.voice_client.stop()
         elif self.is_playing and len(self.music_queue) == 0:
-            await ctx.reply("There are no more tracks in the playlist, stopping instead")
+            if not silent:
+                await ctx.reply("There are no more tracks in the playlist, stopping instead")
             self.stop()
         else:
-            await ctx.reply("Nothing is playing")
+            if not silent:
+                await ctx.reply("Nothing is playing")
 
     ############
     ## Remove ##

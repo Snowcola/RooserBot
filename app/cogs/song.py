@@ -15,6 +15,8 @@ class Song:
     _embed: Optional[Embed] = None
 
     def load_missing_data(self):
+        if self.duration < 0:
+            return
         track_info = cogs.YoutubeSearch.search_song(self.web_url)[0]
         self._source = track_info.source
         self._thumbnail = track_info._thumbnail
