@@ -17,6 +17,7 @@ class PlaylistManager(Cog):
 
     @cog_ext.cog_slash(name="add-playlist", options=[{"name": "playlist_url", "type": 3}])
     async def _add_playlist(self, ctx: SlashContext, playlist_url: Optional[str] = None) -> None:
+        logger.debug(ctx.data)
         await ctx.defer()
         results = YoutubeSearch.search_playlist(playlist_url, ctx)
         self.player.music_queue.extend(results)
