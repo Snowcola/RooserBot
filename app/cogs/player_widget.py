@@ -38,8 +38,10 @@ class PlayerWidget(Cog):
 
     @Cog.listener()
     async def on_connect(self):
+        await asyncio.sleep(5)
         self.asset_guild: Guild = self.bot.get_guild(220318911818760192)
         self.emojis = {x.name: x for x in self.asset_guild.emojis}
+        logger.debug(f"{self.asset_guild=}")
         logger.debug(f"{self.emojis=}")
 
     def playing_status(self):
