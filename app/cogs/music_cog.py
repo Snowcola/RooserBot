@@ -262,7 +262,7 @@ class MusicPlayer(Cog):
         description=f"Start playing from the playlist",
     )
     async def _play(self, ctx: SlashContext):
-        self.play(ctx)
+        await self.play(ctx)
 
     async def play(self, ctx: Union[SlashContext, ComponentContext], silent: bool = False):
         self.is_stopped = False
