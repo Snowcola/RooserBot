@@ -134,7 +134,7 @@ class MusicPlayer(Cog):
     async def _playlist_show(self, ctx: SlashContext):
         embed = self.playlist_embed()
         await ctx.reply(embed=embed)
-        await ctx.reply(**self.player_widget.show(ctx))
+        await self.player_widget.show(ctx)
 
     def playlist_embed(self):
         embed = Embed(
