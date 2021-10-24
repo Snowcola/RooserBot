@@ -275,6 +275,7 @@ class MusicPlayer(Cog):
         if len(self.music_queue) > 0:
             if not silent:
                 await ctx.reply(f"**Now Playing**", embed=self.music_queue[0].embed)
+                await self.player_widget.show(ctx)
             await self.play_next()
         else:
             if not silent:
