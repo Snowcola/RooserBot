@@ -1,1 +1,4 @@
-flask
+discord.py[voice]
+pymongo
+python-dotenv
+motor[srv]
